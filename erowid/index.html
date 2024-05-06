@@ -28,36 +28,41 @@ footer {
 <article>
     <p>Finding a random Erowid experience for you, sit tight!</p>
     <p><pre id="log"></pre></p>
+    <p id="loading">.</p>
 </article>
 <footer>Not affiliated with <a href="https://erowid.org">EROWID</a></footer>
 <script>
-const baseUrl = "https://cors-anywhere.herokuapp.com/erowid.org/experiences/exp.cgi";
+const baseUrl = "https://api.allorigins.win/get?url=erowid.org/experiences/exp.cgi";
 const logEl = document.getElementById("log");
 
-function fetchHTML(url) {
-    return fetch(url)
-    .then((r) => r.text())
-    .then(function(html) {
-        var page = document.createElement("html");
-        page.innerHTML = html;
-        return page;
-    });
+
+function makeIntoHTML(page) {
+    let htmlHolder = document.createElement( 'html' );
+    htmlHolder.innerHTML = page.contents
+    page = htmlHolder
+    return page
 }
 
-function log(text) {
-    logEl.innerText += "\r\n" + text;
-}
-
-log("Fetching experience list...");
-fetchHTML(baseUrl + "?OldSort=PDA_RA&NewSort=PDD")
+fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('http://erowid.org/experiences/exp.cgi?OldSort=PDA_RA&NewSort=PDD')}`)
+.then(response => {
+	if (response.ok) return response.json()
+	throw new Error('Network response was not ok.')
+})
 .then(function(page) {
-    var entryCount = parseInt(page.querySelector("center > font[size='2']").innerText.split(" ")[0].substr(1));
+    page = makeIntoHTML(page)
+    var entryCount = parseInt(page.getElementsByClassName("exp-list-table-title-count")[0].innerText.split(" ")[4].substr(0,5))
     var randEntry = Math.floor(Math.random() * entryCount);
     log("Entry count: " + entryCount.toString());
     log("Fetching entries starting at " + randEntry + "...");
-    return fetchHTML(baseUrl + "?OldSort=PDA_RA&NewSort=PDD&Count=100&Start=" + randEntry.toString());
+
+    return fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('http://erowid.org/experiences/exp.cgi?OldSort=PDA_RA&NewSort=PDD&Count=100&Start=' + randEntry.toString())}`)
+        .then(response => {
+            if (response.ok) return response.json()
+            throw new Error('Network response was not ok.')
+        })
 })
 .then(function(page) {
+    page = makeIntoHTML(page)
     var exps = page.querySelectorAll(".exp-list-table td > a");
     var randExp = exps[Math.floor(Math.random() * exps.length)];
     var expID = parseInt(randExp.href.split("=")[1]);
@@ -68,6 +73,22 @@ fetchHTML(baseUrl + "?OldSort=PDA_RA&NewSort=PDD")
     log("Sorry, something went wrong:");
     log(err.toString());
 });
+
+function log(text) {
+    logEl.innerText += "\r\n" + text;
+}
+
+log("Fetching experience list...");
+
+let loadingCount = 1
+setInterval(() => {
+    if (loadingCount > 3) {
+        loadingCount = 1
+    }
+    document.getElementById("loading").innerHTML = '.'.repeat(loadingCount)
+    loadingCount++
+}, 300)
+
 </script>
 </body>
 </html>
